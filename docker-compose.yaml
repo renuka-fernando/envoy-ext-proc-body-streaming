@@ -1,0 +1,51 @@
+services:
+  envoy:
+    image: envoyproxy/envoy:v1.34.1
+    volumes:
+      - ./envoy.yaml:/etc/envoy/envoy.yaml
+    command: envoy -c /etc/envoy/envoy.yaml --service-cluster front-proxy --file-flush-interval-msec 50 -l info --component-log-level ext_proc:trace
+    ports:
+      - "18080:18080"
+      - "19090:19090"
+      - "9901:9901"
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+        reservations:
+          cpus: "2"
+          memory: 1G
+
+  echo-netty:
+    image: renukafernando/netty-http-echo-service:0.4.6-arm # for arm64
+    # image: renukafernando/netty-http-echo-service:0.4.6 # for x86
+    command: ["-m", "2g", "--", "--max-content-length", "1000000000"]
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "1"
+          memory: 21500M
+        reservations:
+          cpus: "1"
+          memory: 2500M
+    ports:
+      - "8688:8688"
+
+  # ext-proc:
+  #   image: alpine:3.21.0
+  #   volumes:
+  #     - ./external_processor/external_processor:/bin/external_processor
+  #   entrypoint: ["/bin/external_processor"]
+  #   # build:
+  #   #   context: ./external_processor
+  #   #   dockerfile: Dockerfile
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "1"
+  #         memory: 100M
+  #       reservations:
+  #         cpus: "1"
+  #         memory: 100M
