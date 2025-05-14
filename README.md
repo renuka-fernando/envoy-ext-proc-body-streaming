@@ -4,6 +4,8 @@ POC on using Envoy External Processor (ext proc) to process body in streaming mo
 
 Please update the netty-echo image in [docker-compose.yaml](docker-compose.yaml) to the image that matches your local environment architecture.
 
+![Request flow](./resources/request_flow.png)
+
 ## Run Ext Proc Service
 
 ```sh
