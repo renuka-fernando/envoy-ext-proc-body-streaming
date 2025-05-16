@@ -6,20 +6,19 @@ Please update the netty-echo image in [docker-compose.yaml](docker-compose.yaml)
 
 ![Request flow](./resources/request_flow.png)
 
-
-## Full Duplex Streaming
-
-### Run Ext Proc Service
-
-```sh
-cd external_processor-full-duplex-stream;
-go run main.go -write_data_to_file
-```
+## 1. Full Duplex Streaming Mode
 
 ### Start Envoy Docker Compose
 
 ```sh
 docker compose down; docker compose up -d; docker compose logs -ft
+```
+
+### Run Ext Proc Service
+
+```sh
+cd external-processor-full-duplex-stream;
+go run main.go -write_data_to_file
 ```
 
 ### Check Memory Consumption
@@ -30,14 +29,6 @@ docker compose stats envoy
 
 ### Test the Ext Proc Service
 
-#### Full Duplex Streaming
-
-Restart Envoy
-
-```sh
-docker compose restart envoy; docker compose logs -ft
-```
-
 ```sh
 for i in {1..10}; do
     curl --location 'http://localhost:18080/full-duplex-streamed' -vvv \
@@ -47,18 +38,40 @@ done
 ```
 
 ```log
-CONTAINER ID   NAME                                         CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O    PIDS
-001dd5d9a9a8   envoy-ext-proc-body-streaming-envoy-1        26.25%    696.1MiB / 1GiB       67.98%    1.65GB / 1.47GB   0B / 0B      12
-cfda2f872e3c   envoy-ext-proc-body-streaming-echo-netty-1   99.34%    974.2MiB / 3.814GiB   24.94%    625MB / 129MB     0B / 377kB   18
+CONTAINER ID   NAME                                    CPU %     MEM USAGE / LIMIT   MEM %     NET I/O           BLOCK I/O   PIDS
+334709c09931   envoy-ext-proc-body-streaming-envoy-1   0.82%     527.6MiB / 1GiB     51.52%    2.52GB / 2.49GB   0B / 0B     12
 ```
 
-#### Streaming
+### Clean Up
 
-Restart Envoy
+1.  Stop the ext proc service and remove the temp files.
+2.  Stop the Docker Compose.
+    ```sh
+    docker compose down
+    ```
+
+## 2. Streaming Mode
+
+### Start Envoy Docker Compose
 
 ```sh
-docker compose restart envoy; docker compose logs -ft
+docker compose down; docker compose up -d; docker compose logs -ft
 ```
+
+### Run Ext Proc Service
+
+```sh
+cd external-processor-stream;
+go run main.go -write_data_to_file
+```
+
+### Check Memory Consumption
+
+```sh
+docker compose stats envoy
+```
+
+### Test the Ext Proc Service
 
 ```sh
 for i in {1..10}; do
@@ -69,7 +82,6 @@ done
 ```
 
 ```log
-CONTAINER ID   NAME                                         CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O    PIDS
-001dd5d9a9a8   envoy-ext-proc-body-streaming-envoy-1        26.25%    696.1MiB / 1GiB       67.98%    1.65GB / 1.47GB   0B / 0B      12
-cfda2f872e3c   envoy-ext-proc-body-streaming-echo-netty-1   99.34%    974.2MiB / 3.814GiB   24.94%    625MB / 129MB     0B / 377kB   18
+CONTAINER ID   NAME                                    CPU %     MEM USAGE / LIMIT   MEM %     NET I/O           BLOCK I/O   PIDS
+f92bccc9c103   envoy-ext-proc-body-streaming-envoy-1   42.67%    151.7MiB / 1GiB     14.82%    4.56GB / 5.43GB   0B / 0B
 ```
