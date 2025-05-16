@@ -3,11 +3,11 @@ services:
     image: envoyproxy/envoy:v1.34.1
     volumes:
       - ./envoy.yaml:/etc/envoy/envoy.yaml
-    command: envoy -c /etc/envoy/envoy.yaml --service-cluster front-proxy --file-flush-interval-msec 50 -l info --component-log-level ext_proc:trace
+    command: envoy -c /etc/envoy/envoy.yaml --service-cluster front-proxy --file-flush-interval-msec 50 -l info --component-log-level ext_proc:info
     ports:
-      - "18080:18080"
-      - "19090:19090"
-      - "9901:9901"
+      - "18080:18080" # with ext proc
+      - "19090:19090" # no ext proc
+      - "9901:9901" # admin port
     deploy:
       resources:
         limits:
@@ -30,8 +30,6 @@ services:
         reservations:
           cpus: "1"
           memory: 2500M
-    ports:
-      - "8688:8688"
 
   # ext-proc:
   #   image: alpine:3.21.0

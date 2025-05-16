@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	ext_procv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_proc/v3"
 	ext_proc_v3 "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 	pb "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 	"github.com/rs/zerolog"
@@ -22,9 +23,11 @@ var _ ext_proc_v3.ExternalProcessorServer = &server{}
 
 var new_req_body []byte
 var new_req_body_chunks [][]byte
+var new_req_body_chunks_i = 0
 
 var new_resp_body []byte
 var new_resp_body_chunks [][]byte
+var new_resp_body_chunks_i = 0
 
 const chunkSize = 1 << 20 // 1 MiB = 1048576 bytes
 
@@ -52,7 +55,7 @@ func (s *server) Process(processServer ext_proc_v3.ExternalProcessor_ProcessServ
 	req_payload_file := &os.File{}
 	var err error
 	if *write_data_to_file {
-		req_payload_filename := fmt.Sprintf("/Users/renuka/Downloads/ext_proc_test/temp/%d-request_payload.mp4", rnd)
+		req_payload_filename := fmt.Sprintf("../temp/%d-request_payload.mp4", rnd)
 		req_payload_file, err = os.OpenFile(req_payload_filename, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			fmt.Println("Error opening or creating file:", err)
@@ -62,7 +65,7 @@ func (s *server) Process(processServer ext_proc_v3.ExternalProcessor_ProcessServ
 
 	resp_payload_file := &os.File{}
 	if *write_data_to_file {
-		resp_payload_filename := fmt.Sprintf("/Users/renuka/Downloads/ext_proc_test/temp/%d-response_body.mp4", rnd)
+		resp_payload_filename := fmt.Sprintf("../temp/%d-response_body.mp4", rnd)
 		resp_payload_file, err = os.OpenFile(resp_payload_filename, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			fmt.Println("Error opening or creating file:", err)
@@ -89,7 +92,7 @@ func (s *server) Process(processServer ext_proc_v3.ExternalProcessor_ProcessServ
 		}
 
 		log.Info().Msgf("Processing Request : %d", rnd)
-		time.Sleep(1 * time.Microsecond)
+		time.Sleep(1 * time.Millisecond)
 		// route_name := req.MetadataContext.FilterMetadata["envoy.filters.http.ext_proc"].Fields["meta.route_name"].GetStringValue()
 
 		switch value := req.Request.(type) {
@@ -98,6 +101,9 @@ func (s *server) Process(processServer ext_proc_v3.ExternalProcessor_ProcessServ
 			log.Info().Msgf("******** Processing Request Headers ********* %v", rnd)
 			resp := &pb.ProcessingResponse{
 				Response: &pb.ProcessingResponse_RequestHeaders{},
+				ModeOverride: &ext_procv3.ProcessingMode{
+					RequestBodyMode: ext_procv3.ProcessingMode_STREAMED,
+				},
 			}
 
 			if err := processServer.Send(resp); err != nil {
@@ -115,59 +121,50 @@ func (s *server) Process(processServer ext_proc_v3.ExternalProcessor_ProcessServ
 				}
 			}
 
-			if value.RequestBody.EndOfStream {
-				log.Info().Msg("Request Body EOF ****************************************************************************************")
-				log.Info().Msgf("Updating file with new content. Length: %v", len(new_req_body))
-
-				for i, _ := range new_req_body_chunks {
-
-					// Response for FULL_DUPLEX_STREAMED
-					resp := &pb.ProcessingResponse{
-						Response: &pb.ProcessingResponse_RequestBody{
-							RequestBody: &pb.BodyResponse{
-								Response: &pb.CommonResponse{
-									BodyMutation: &pb.BodyMutation{
-										Mutation: &pb.BodyMutation_StreamedResponse{
-											StreamedResponse: &pb.StreamedBodyResponse{
-												Body:        new_req_body_chunks[i],
-												EndOfStream: i == len(new_req_body_chunks)-1,
-											},
-										},
+			bodyLen := len(body)
+			if len(new_req_body_chunks) < new_req_body_chunks_i {
+				resp := &pb.ProcessingResponse{
+					Response: &pb.ProcessingResponse_RequestBody{
+						RequestBody: &pb.BodyResponse{
+							Response: &pb.CommonResponse{
+								BodyMutation: &pb.BodyMutation{
+									Mutation: &pb.BodyMutation_Body{
+										Body: new_req_body[new_req_body_chunks_i : new_req_body_chunks_i+bodyLen],
 									},
 								},
 							},
 						},
-					}
-
-					if err := processServer.Send(resp); err != nil {
-						log.Error().Err(err).Msg("Error sending response")
-					}
+					},
+				}
+				if err := processServer.Send(resp); err != nil {
+					log.Error().Err(err).Msg("Error sending response")
+				}
+				new_req_body_chunks_i += bodyLen
+			} else {
+				resp := &pb.ProcessingResponse{
+					Response: &pb.ProcessingResponse_RequestBody{
+						RequestBody: &pb.BodyResponse{
+							Response: &pb.CommonResponse{
+								BodyMutation: &pb.BodyMutation{
+									Mutation: &pb.BodyMutation_ClearBody{},
+								},
+							},
+						},
+					},
+				}
+				if err := processServer.Send(resp); err != nil {
+					log.Error().Err(err).Msg("Error sending response")
 				}
 			}
-
-			// // Response for STREAMED
-			// resp := &pb.ProcessingResponse{
-			// 	Response: &pb.ProcessingResponse_RequestBody{
-			// 		RequestBody: &pb.BodyResponse{
-			// 			Response: &pb.CommonResponse{
-			// 				BodyMutation: &pb.BodyMutation{
-			// 					Mutation: &pb.BodyMutation_Body{
-			// 						Body: []byte{},
-			// 					},
-			// 				},
-			// 			},
-			// 		},
-			// 	},
-			// }
-			// if err := processServer.Send(resp); err != nil {
-			// 	log.Error().Err(err).Msg("Error sending response")
-			// }
 
 		case *pb.ProcessingRequest_ResponseHeaders:
 			log.Info().Msgf("******** Processing Response Headers ********* %v", rnd)
 
 			resp := &pb.ProcessingResponse{
 				Response: &pb.ProcessingResponse_ResponseHeaders{},
+				ModeOverride: &ext_procv3.ProcessingMode{
+					ResponseBodyMode: ext_procv3.ProcessingMode_STREAMED,
+				},
 			}
 
 			if err := processServer.Send(resp); err != nil {
@@ -185,51 +182,40 @@ func (s *server) Process(processServer ext_proc_v3.ExternalProcessor_ProcessServ
 				}
 			}
 
-			if value.ResponseBody.EndOfStream {
-				log.Info().Msg("Response Body EOF ****************************************************************************************")
-				log.Info().Msgf("Updating file with new content. Length: %v", len(new_resp_body))
-
-				for i, _ := range new_resp_body_chunks {
-					resp := &pb.ProcessingResponse{
-						Response: &pb.ProcessingResponse_ResponseBody{
-							ResponseBody: &pb.BodyResponse{
-								Response: &pb.CommonResponse{
-									BodyMutation: &pb.BodyMutation{
-										Mutation: &pb.BodyMutation_StreamedResponse{
-											StreamedResponse: &pb.StreamedBodyResponse{
-												Body:        new_resp_body_chunks[i],
-												EndOfStream: i == len(new_resp_body_chunks)-1,
-											},
-										},
+			if len(new_resp_body_chunks) < new_resp_body_chunks_i {
+				resp := &pb.ProcessingResponse{
+					Response: &pb.ProcessingResponse_ResponseBody{
+						ResponseBody: &pb.BodyResponse{
+							Response: &pb.CommonResponse{
+								BodyMutation: &pb.BodyMutation{
+									Mutation: &pb.BodyMutation_Body{
+										Body: new_resp_body_chunks[new_resp_body_chunks_i],
 									},
 								},
 							},
 						},
-					}
-
-					if err := processServer.Send(resp); err != nil {
-						log.Error().Err(err).Msg("Error sending response")
-					}
+					},
+				}
+				if err := processServer.Send(resp); err != nil {
+					log.Error().Err(err).Msg("Error sending response")
+				}
+				new_resp_body_chunks_i++
+			} else {
+				resp := &pb.ProcessingResponse{
+					Response: &pb.ProcessingResponse_ResponseBody{
+						ResponseBody: &pb.BodyResponse{
+							Response: &pb.CommonResponse{
+								BodyMutation: &pb.BodyMutation{
+									Mutation: &pb.BodyMutation_ClearBody{},
+								},
+							},
+						},
+					},
+				}
+				if err := processServer.Send(resp); err != nil {
+					log.Error().Err(err).Msg("Error sending response")
 				}
 			}
-
-			// // Response for STREAMED
-			// resp := &pb.ProcessingResponse{
-			// 	Response: &pb.ProcessingResponse_ResponseBody{
-			// 		ResponseBody: &pb.BodyResponse{
-			// 			Response: &pb.CommonResponse{
-			// 				BodyMutation: &pb.BodyMutation{
-			// 					Mutation: &pb.BodyMutation_Body{
-			// 						Body: []byte{},
-			// 					},
-			// 				},
-			// 			},
-			// 		},
-			// 	},
-			// }
-			// if err := processServer.Send(resp); err != nil {
-			// 	log.Error().Err(err).Msg("Error sending response")
-			// }
 
 		default:
 			log.Warn().Msgf("Unknown request type: %T", value)
@@ -249,13 +235,13 @@ func main() {
 		log.Fatal().Err(err).Msgf("failed to listen: %v", err)
 	}
 
-	new_req_body, err = os.ReadFile("/Users/renuka/Downloads/ext_proc_test/roar.mp4")
+	new_req_body, err = os.ReadFile("../resources/roar.mp4")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error reading file")
 	}
 	new_req_body_chunks = splitIntoChunks(new_req_body)
 
-	new_resp_body, err = os.ReadFile("/Users/renuka/Downloads/ext_proc_test/something_just_like_this.mp4")
+	new_resp_body, err = os.ReadFile("../resources/something_just_like_this.mp4")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error reading file")
 	}
