@@ -121,11 +121,11 @@ func (s *server) Process(processServer ext_proc_v3.ExternalProcessor_ProcessServ
 
 			bodyLen := len(body)
 			if len(new_req_body) > new_req_body_chunks_i {
-				var body []byte
+				var newBody []byte
 				if len(new_req_body) > new_req_body_chunks_i+bodyLen {
-					body = new_req_body[new_req_body_chunks_i : new_req_body_chunks_i+bodyLen]
+					newBody = new_req_body[new_req_body_chunks_i : new_req_body_chunks_i+bodyLen]
 				} else {
-					body = new_req_body[new_req_body_chunks_i:]
+					newBody = new_req_body[new_req_body_chunks_i:]
 
 				}
 
@@ -135,7 +135,7 @@ func (s *server) Process(processServer ext_proc_v3.ExternalProcessor_ProcessServ
 							Response: &pb.CommonResponse{
 								BodyMutation: &pb.BodyMutation{
 									Mutation: &pb.BodyMutation_Body{
-										Body: body,
+										Body: newBody,
 									},
 								},
 							},
@@ -188,14 +188,13 @@ func (s *server) Process(processServer ext_proc_v3.ExternalProcessor_ProcessServ
 				}
 			}
 
-			bodyLen := len(body)
+			bodyLen := len(body) + 1<<20 // since the response is larger than the request, we need to add some extra bytes to the body length
 			if len(new_resp_body) > new_resp_body_chunks_i {
-				var body []byte
+				var newBody []byte
 				if len(new_resp_body) > new_resp_body_chunks_i+bodyLen {
-					body = new_resp_body[new_resp_body_chunks_i : new_resp_body_chunks_i+bodyLen]
+					newBody = new_resp_body[new_resp_body_chunks_i : new_resp_body_chunks_i+bodyLen]
 				} else {
-					body = new_resp_body[new_resp_body_chunks_i:]
-
+					newBody = new_resp_body[new_resp_body_chunks_i:]
 				}
 
 				resp := &pb.ProcessingResponse{
@@ -204,7 +203,7 @@ func (s *server) Process(processServer ext_proc_v3.ExternalProcessor_ProcessServ
 							Response: &pb.CommonResponse{
 								BodyMutation: &pb.BodyMutation{
 									Mutation: &pb.BodyMutation_Body{
-										Body: body,
+										Body: newBody,
 									},
 								},
 							},
