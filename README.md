@@ -31,6 +31,13 @@ docker compose stats envoy
 ### Test the Ext Proc Service
 
 #### Full Duplex Streaming
+
+Restart Envoy
+
+```sh
+docker compose restart envoy; docker compose logs -ft
+```
+
 ```sh
 for i in {1..10}; do
     curl --location 'http://localhost:18080/full-duplex-streamed' -vvv \
@@ -46,6 +53,12 @@ cfda2f872e3c   envoy-ext-proc-body-streaming-echo-netty-1   99.34%    974.2MiB /
 ```
 
 #### Streaming
+
+Restart Envoy
+
+```sh
+docker compose restart envoy; docker compose logs -ft
+```
 
 ```sh
 for i in {1..10}; do

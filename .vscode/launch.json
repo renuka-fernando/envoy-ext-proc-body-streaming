@@ -9,14 +9,16 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/external-processor-stream"
+            "program": "${workspaceFolder}/external-processor-stream",
+            "args": ["-write_data_to_file"],
         },
         {
             "name": "full-duplex-server",
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/external-processor-full-duplix-stream"
+            "program": "${workspaceFolder}/external-processor-full-duplix-stream",
+            "args": ["-write_data_to_file"],
         }
     ]
 }

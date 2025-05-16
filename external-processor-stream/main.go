@@ -22,12 +22,7 @@ var write_data_to_file *bool
 var _ ext_proc_v3.ExternalProcessorServer = &server{}
 
 var new_req_body []byte
-var new_req_body_chunks [][]byte
-var new_req_body_chunks_i = 0
-
 var new_resp_body []byte
-var new_resp_body_chunks [][]byte
-var new_resp_body_chunks_i = 0
 
 const chunkSize = 1 << 20 // 1 MiB = 1048576 bytes
 
@@ -51,6 +46,9 @@ type server struct {
 func (s *server) Process(processServer ext_proc_v3.ExternalProcessor_ProcessServer) error {
 	ctx := processServer.Context()
 	rnd := rand.Int()
+
+	var new_req_body_chunks_i = 0
+	var new_resp_body_chunks_i = 0
 
 	req_payload_file := &os.File{}
 	var err error
@@ -101,9 +99,9 @@ func (s *server) Process(processServer ext_proc_v3.ExternalProcessor_ProcessServ
 			log.Info().Msgf("******** Processing Request Headers ********* %v", rnd)
 			resp := &pb.ProcessingResponse{
 				Response: &pb.ProcessingResponse_RequestHeaders{},
-				ModeOverride: &ext_procv3.ProcessingMode{
-					RequestBodyMode: ext_procv3.ProcessingMode_STREAMED,
-				},
+				// ModeOverride: &ext_procv3.ProcessingMode{
+				// 	RequestBodyMode: ext_procv3.ProcessingMode_STREAMED,
+				// },
 			}
 
 			if err := processServer.Send(resp); err != nil {
@@ -122,14 +120,22 @@ func (s *server) Process(processServer ext_proc_v3.ExternalProcessor_ProcessServ
 			}
 
 			bodyLen := len(body)
-			if len(new_req_body_chunks) < new_req_body_chunks_i {
+			if len(new_req_body) > new_req_body_chunks_i {
+				var body []byte
+				if len(new_req_body) > new_req_body_chunks_i+bodyLen {
+					body = new_req_body[new_req_body_chunks_i : new_req_body_chunks_i+bodyLen]
+				} else {
+					body = new_req_body[new_req_body_chunks_i:]
+
+				}
+
 				resp := &pb.ProcessingResponse{
 					Response: &pb.ProcessingResponse_RequestBody{
 						RequestBody: &pb.BodyResponse{
 							Response: &pb.CommonResponse{
 								BodyMutation: &pb.BodyMutation{
 									Mutation: &pb.BodyMutation_Body{
-										Body: new_req_body[new_req_body_chunks_i : new_req_body_chunks_i+bodyLen],
+										Body: body,
 									},
 								},
 							},
@@ -182,14 +188,23 @@ func (s *server) Process(processServer ext_proc_v3.ExternalProcessor_ProcessServ
 				}
 			}
 
-			if len(new_resp_body_chunks) < new_resp_body_chunks_i {
+			bodyLen := len(body)
+			if len(new_resp_body) > new_resp_body_chunks_i {
+				var body []byte
+				if len(new_resp_body) > new_resp_body_chunks_i+bodyLen {
+					body = new_resp_body[new_resp_body_chunks_i : new_resp_body_chunks_i+bodyLen]
+				} else {
+					body = new_resp_body[new_resp_body_chunks_i:]
+
+				}
+
 				resp := &pb.ProcessingResponse{
 					Response: &pb.ProcessingResponse_ResponseBody{
 						ResponseBody: &pb.BodyResponse{
 							Response: &pb.CommonResponse{
 								BodyMutation: &pb.BodyMutation{
 									Mutation: &pb.BodyMutation_Body{
-										Body: new_resp_body_chunks[new_resp_body_chunks_i],
+										Body: body,
 									},
 								},
 							},
@@ -199,7 +214,7 @@ func (s *server) Process(processServer ext_proc_v3.ExternalProcessor_ProcessServ
 				if err := processServer.Send(resp); err != nil {
 					log.Error().Err(err).Msg("Error sending response")
 				}
-				new_resp_body_chunks_i++
+				new_resp_body_chunks_i += bodyLen
 			} else {
 				resp := &pb.ProcessingResponse{
 					Response: &pb.ProcessingResponse_ResponseBody{
@@ -239,13 +254,11 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error reading file")
 	}
-	new_req_body_chunks = splitIntoChunks(new_req_body)
 
 	new_resp_body, err = os.ReadFile("../resources/something_just_like_this.mp4")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error reading file")
 	}
-	new_resp_body_chunks = splitIntoChunks(new_resp_body)
 
 	gs := grpc.NewServer(
 		grpc.MaxRecvMsgSize(1024*1024*50), // 50 MB
