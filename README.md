@@ -11,7 +11,7 @@ Please update the netty-echo image in [docker-compose.yaml](docker-compose.yaml)
 ### Start Envoy Docker Compose
 
 ```sh
-docker compose down; docker compose up -d; docker compose logs -ft
+docker compose down; docker compose up -d; docker compose logs -ft envoy
 ```
 
 ### Run Ext Proc Service
@@ -55,7 +55,7 @@ CONTAINER ID   NAME                                    CPU %     MEM USAGE / LIM
 ### Start Envoy Docker Compose
 
 ```sh
-docker compose down; docker compose up -d; docker compose logs -ft
+docker compose down; docker compose up -d; docker compose logs -ft envoy
 ```
 
 ### Run Ext Proc Service

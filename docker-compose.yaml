@@ -3,7 +3,7 @@ services:
     image: envoyproxy/envoy:v1.34.1
     volumes:
       - ./envoy.yaml:/etc/envoy/envoy.yaml
-    command: envoy -c /etc/envoy/envoy.yaml --service-cluster front-proxy --file-flush-interval-msec 50 -l info --component-log-level ext_proc:info
+    command: envoy -c /etc/envoy/envoy.yaml --service-cluster front-proxy --file-flush-interval-msec 50 -l info --component-log-level ext_proc:trace
     ports:
       - "18080:18080" # with ext proc
       - "19090:19090" # no ext proc
@@ -12,24 +12,24 @@ services:
       resources:
         limits:
           cpus: "2"
-          memory: 1G
+          memory: 2G
         reservations:
           cpus: "2"
-          memory: 1G
+          memory: 2G
 
   echo-netty:
     image: renukafernando/netty-http-echo-service:0.4.6-arm # for arm64
     # image: renukafernando/netty-http-echo-service:0.4.6 # for x86
-    command: ["-m", "2g", "--", "--max-content-length", "1000000000"]
+    command: ["-m", "1g", "--", "--max-content-length", "1000000000"]
     deploy:
       replicas: 1
       resources:
         limits:
           cpus: "1"
-          memory: 21500M
+          memory: 1500M
         reservations:
           cpus: "1"
-          memory: 2500M
+          memory: 1500M
 
   # ext-proc:
   #   image: alpine:3.21.0
