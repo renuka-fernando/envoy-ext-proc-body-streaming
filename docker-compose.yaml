@@ -1,8 +1,9 @@
 services:
   envoy:
-    image: envoyproxy/envoy:v1.34.1
+    image: renukafernando/envoy-gperftools:v1.34.1
     volumes:
       - ./envoy.yaml:/etc/envoy/envoy.yaml
+      - ./envoy/log:/var/log/envoy
     command: envoy -c /etc/envoy/envoy.yaml --service-cluster front-proxy --file-flush-interval-msec 50 -l info --component-log-level ext_proc:trace
     ports:
       - "18080:18080" # with ext proc

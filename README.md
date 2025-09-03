@@ -11,6 +11,7 @@ Please update the netty-echo image in [docker-compose.yaml](docker-compose.yaml)
 ### Start Envoy Docker Compose
 
 ```sh
+mkdir -p envoy/log
 docker compose down; docker compose up -d; docker compose logs -ft envoy
 ```
 
@@ -27,6 +28,13 @@ go run main.go -write_data_to_file
 docker compose stats envoy
 ```
 
+### Start Heap Profiling (If the image renukafernando/envoy-gperftools:v1.34.1 is used)
+
+```sh
+curl 'http://localhost:9901/heapprofiler' \
+  --data-raw 'enable=y'
+```
+
 ### Test the Ext Proc Service
 
 ```sh
@@ -40,6 +48,13 @@ done
 ```log
 CONTAINER ID   NAME                                    CPU %     MEM USAGE / LIMIT   MEM %     NET I/O           BLOCK I/O   PIDS
 334709c09931   envoy-ext-proc-body-streaming-envoy-1   0.82%     527.6MiB / 1GiB     51.52%    2.52GB / 2.49GB   0B / 0B     12
+```
+
+### Stop Heap Profiling
+
+```sh
+curl 'http://localhost:9901/heapprofiler' \
+  --data-raw 'enable=n'
 ```
 
 ### Clean Up
